@@ -1,0 +1,49 @@
+---
+title: "Confirmed COVID-19 Cases per Province - Indonesia"
+author: "Fahmi Adi Nugraha"
+date: "5/25/2020"
+output: html_document
+runtime: shiny
+---
+
+Below is the interactive map of the number of comfirmed COVID-19 cases per
+province in Indonesia as well as the code that generated it. Note that the data
+used to generate the map is for May 21, 2020. In order to obtain the most
+recent data, visit this [link][1].
+
+```{r covid map indonesia, warning = FALSE, message = FALSE}
+# Load the necessary libraries
+library(tidyverse)
+library(magrittr)
+library(leaflet)
+
+# Create the map
+renderLeaflet({
+  #Get data
+  url <- 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRzcBfpP9-wRY5tHDW1KOwvRXDKPwCvnZXds1wP9vfyWO6AOHFccID6Xya-2H_0U6Q-Cy-IguHMHhzT/pub?gid=1857994474&single=true&output=csv'
+  covid_per_province <- read_csv(url)
+  
+  # Extract required information
+  covid_per_province %<>%
+    mutate(lat = map_dbl(`Features Geometry Coordinates`,
+                         ~ str_split(.x, ',') %>% pluck(1, 2) %>%
+                             as.numeric()),
+           long = map_dbl(`Features Geometry Coordinates`,
+                          ~ str_split(.x, ',') %>% pluck(1, 1) %>%
+                              as.numeric()),
+           label = map2_chr(Province_name, Confirmed_cases,
+                            ~ paste(paste0('<b>', .x, '</b>'),
+                                    paste('Confirmed cases:', .y),
+                                    sep = '<br>')))
+
+  # Create the map
+  covid_per_province %>%
+    select(Province_name, Confirmed_cases, lat, long, label) %>%
+    leaflet() %>%
+    addTiles() %>%
+    addCircles(radius = ~ Confirmed_cases * 20, popup = ~ label)
+})
+```
+
+
+[1]: https://data.humdata.org/dataset/indonesia-covid-19-cases-recoveries-and-deaths-per-province
